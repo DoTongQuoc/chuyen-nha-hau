@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chuyện nhà Hàu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<!-- ĐĂNG NHẬP -->
+<div id="login-screen">
+  <form class="login-ticket" id="login-form">
+    <div class="login-logo">✦ CHUYỆN NHÀ HÀU</div>
+    <h1>Đăng nhập</h1>
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" required autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label for="login-password">Mật khẩu</label>
+      <input type="password" id="login-password" required autocomplete="current-password"/>
+    </div>
+    <p class="login-error" id="login-error"></p>
+    <button type="submit" class="btn-primary">Đăng nhập</button>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="app-shell" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">✦ CHUYỆN NHÀ HÀU</div>
+    <nav>
+      <a href="#lich"      class="nav-link" data-route="lich">📅 Xếp lịch</a>
+      <a href="#luong"     class="nav-link" data-route="luong">💵 Tính lương</a>
+      <a href="#nhanvien"  class="nav-link" data-route="nhanvien">👥 Nhân viên</a>
+      <a href="#caidat"    class="nav-link" data-route="caidat">⚙️ Cài đặt</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" id="logout-btn">↩ Đăng xuất</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="menu-toggle" class="menu-btn">☰</button>
+        <h2 id="page-title">Xếp Lịch</h2>
+      </div>
+      <button class="btn-export" id="export-png-btn">🖼 <span>Xuất PNG</span></button>
+    </header>
+    <main id="page-content"></main>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-backdrop" class="modal-backdrop hidden">
+  <div id="modal-box" class="modal-box"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-root" class="toast-root"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

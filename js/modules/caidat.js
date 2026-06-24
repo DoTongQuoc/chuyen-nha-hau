@@ -5,7 +5,11 @@ import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthPro
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 export function renderCaiDat(container) {
-  window._exportName = "cai-dat.png";
+  // Ẩn nút xuất PNG ở module cài đặt
+  document.getElementById("export-png-btn").style.display="none";
+  window._exportFn=null;
+  window._exportName=null;
+
   container.innerHTML = `<p style="color:var(--ink-2)">Đang tải...</p>`;
   const unsub = subscribeSettings(s => buildUI(s));
 
@@ -46,9 +50,9 @@ export function renderCaiDat(container) {
       </div>
 
       <div class="card" style="margin-bottom:14px">
-        <h3 class="card-title">🖼 Xuất PNG</h3>
-        <label class="check-label"><input type="checkbox" id="s-showlogo" ${s.exportConfig.showLogo?"checked":""}/> Hiện logo trên ảnh xuất</label>
-        <label class="check-label"><input type="checkbox" id="s-showbank" ${s.exportConfig.showBankInfo?"checked":""}/> Hiện số TK trên phiếu lương</label>
+        <h3 class="card-title">🖼 Tuỳ chọn xuất phiếu lương</h3>
+        <label class="check-label"><input type="checkbox" id="s-showlogo" ${s.exportConfig.showLogo?"checked":""}/> Hiện logo trên phiếu lương</label>
+        <label class="check-label"><input type="checkbox" id="s-showbank" ${s.exportConfig.showBankInfo?"checked":""}/> Hiện số TK &amp; QR chuyển khoản trên phiếu lương</label>
       </div>
 
       <button class="btn-primary" style="width:auto;padding:11px 28px;margin-bottom:24px" id="save-btn">💾 Lưu cài đặt</button>

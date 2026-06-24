@@ -5,13 +5,17 @@ export function renderNhanVien(container, params) {
   let subs = [];
   const unsub = () => { subs.forEach(u=>u&&u()); subs=[]; };
 
+  // Ẩn nút xuất PNG toàn bộ module nhân viên
+  document.getElementById("export-png-btn").style.display="none";
+  window._exportFn=null;
+  window._exportName=null;
+
   const initialId = params.get("id");
   if (initialId) showDetail(initialId);
   else showList();
 
   function showList() {
     unsub();
-    window._exportName = "danh-sach-nhan-vien.png";
     container.innerHTML = `
       <div class="subbar">
         <div></div>
@@ -103,7 +107,6 @@ export function renderNhanVien(container, params) {
         </div>`;
     }
 
-    window._exportName = `nv-${s.name.replace(/\s+/g,"-")}.png`;
     container.innerHTML = `
       <button class="back-btn" id="back">← Danh sách</button>
       <div class="card" style="margin-bottom:14px">

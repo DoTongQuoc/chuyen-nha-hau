@@ -14,7 +14,10 @@ export function renderLuong(container, params) {
   // ── BẢNG TỔNG HỢP ──
   async function showList() {
     unsub();
-    window._exportName=`bang-luong-${month}.png`;
+    // Ẩn nút xuất PNG ở bảng tổng hợp
+    document.getElementById("export-png-btn").style.display="none";
+    window._exportName=null;
+    window._exportFn=null;
     container.innerHTML=`
       <div class="stat-row" id="stats"></div>
       <div class="subbar">
@@ -66,7 +69,7 @@ export function renderLuong(container, params) {
     `;
     if(!rows.length){tbody.innerHTML=`<tr><td colspan="9" style="color:var(--ink-2)">Chưa có nhân viên</td></tr>`;return;}
     tbody.innerHTML=rows.map(r=>`
-      <tr>
+      <tr class="clickable-row" data-id="${r.s.id}" style="cursor:pointer;">
         <td><div style="display:flex;align-items:center;gap:8px">
           <div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(r.s.name)}">${initials(r.s.name)}</div>
           ${esc(r.s.name)}</div></td>
@@ -77,10 +80,25 @@ export function renderLuong(container, params) {
         <td class="num right">${r.advance?formatVND(r.advance):"--"}</td>
         <td class="num right" style="font-weight:700">${formatVND(r.net)}</td>
         <td><span class="badge ${r.status}">${STATUS_LABEL[r.status]}</span></td>
-        <td><button class="btn-secondary btn-sm" data-id="${r.s.id}">Chi tiết</button></td>
+        <td><button class="btn-secondary btn-sm detail-btn" data-id="${r.s.id}">Chi tiết</button></td>
       </tr>
     `).join("");
-    tbody.querySelectorAll("button[data-id]").forEach(btn=>{btn.onclick=()=>showDetail(btn.dataset.id);});
+
+    // Click cả row
+    tbody.querySelectorAll(".clickable-row").forEach(row=>{
+      row.addEventListener("click", e=>{
+        // Tránh trigger khi click button
+        if(e.target.closest("button")) return;
+        showDetail(row.dataset.id);
+      });
+    });
+    // Click button chi tiết
+    tbody.querySelectorAll(".detail-btn").forEach(btn=>{
+      btn.addEventListener("click", e=>{
+        e.stopPropagation();
+        showDetail(btn.dataset.id);
+      });
+    });
   }
 
   // ── CHI TIẾT ──
@@ -98,6 +116,9 @@ export function renderLuong(container, params) {
     const base=s.salaryType==="fixed"?(s.fixedSalary||0):scheds.reduce((a,sc)=>a+calcHours(sc.startTime,sc.endTime)*(cfg.wageConfig[sc.shiftKey]||0),0);
     const totalH=scheds.reduce((a,sc)=>a+calcHours(sc.startTime,sc.endTime),0);
     window._exportName=`phieu-luong-${s.name.replace(/\s+/g,"-")}-${month}.png`;
+
+    // Hiện nút xuất PNG ở trang chi tiết
+    document.getElementById("export-png-btn").style.display="";
 
     container.innerHTML=`
       <button class="back-btn" id="back">← Bảng lương</button>
@@ -144,7 +165,10 @@ export function renderLuong(container, params) {
       <div class="card" style="margin-top:12px" id="qr-card"></div>
     `;
 
-    document.getElementById("back").onclick=showList;
+    document.getElementById("back").onclick=()=>{
+      document.getElementById("export-png-btn").style.display="none";
+      showList();
+    };
     document.getElementById("view-sched")?.addEventListener("click",()=>window.go("lich",{staff:s.id,date:start}));
     wireNav(()=>buildDetail(s,cfg));
 
@@ -190,8 +214,13 @@ export function renderLuong(container, params) {
     function renderQR(net) {
       const qr=document.getElementById("qr-card");
       if(!qr) return;
-      if(!s.bank?.bankId||!s.bank?.accountNumber) {
-        qr.innerHTML=`<h4 class="card-title">💳 Chuyển khoản</h4><p style="color:var(--ink-2);font-size:13px">Chưa có thông tin ngân hàng.</p>`;
+      const showBank = cfg.exportConfig?.showBankInfo !== false;
+      if(!s.bank?.bankId||!s.bank?.accountNumber||!showBank) {
+        if(!s.bank?.bankId||!s.bank?.accountNumber) {
+          qr.innerHTML=`<h4 class="card-title">💳 Chuyển khoản</h4><p style="color:var(--ink-2);font-size:13px">Chưa có thông tin ngân hàng.</p>`;
+        } else {
+          qr.innerHTML=`<h4 class="card-title">💳 Chuyển khoản</h4><p style="color:var(--ink-2);font-size:13px">Đã ẩn thông tin ngân hàng (cài đặt xuất PNG).</p>`;
+        }
         return;
       }
       const [y,m_]=month.split("-");
@@ -311,7 +340,7 @@ export function renderLuong(container, params) {
       };
     };
 
-    // ── Xuất phiếu lương riêng ──
+    // ── Xuất phiếu lương ──
     function setupExport(getNet) {
       window._exportFn = async () => {
         const net = getNet();
@@ -322,14 +351,29 @@ export function renderLuong(container, params) {
         const penalty = adjs.filter(a=>a.type==="penalty").reduce((x,a)=>x+a.amount,0);
         const advance = advs.reduce((x,a)=>x+a.amount,0);
 
-        // Tạo QR url
+        const showLogo    = cfg.exportConfig?.showLogo !== false;
+        const showBankInfo= cfg.exportConfig?.showBankInfo !== false;
+
+        // Logo
+        let logoHtml = "";
+        if(showLogo && cfg.shopInfo?.logo) {
+          logoHtml=`<img src="${cfg.shopInfo.logo}" crossorigin="anonymous" style="height:36px;object-fit:contain;margin-bottom:8px;display:block"/>`;
+        }
+
+        // QR / bank info
         let qrHtml = "";
-        if (s.bank?.bankId && s.bank?.accountNumber) {
+        let bankInfoHtml = "";
+        if(showBankInfo && s.bank?.bankId && s.bank?.accountNumber) {
           const info=encodeURIComponent(`Luong thang ${m_}/${y} ${s.name}`);
           const aname=encodeURIComponent(s.bank.accountName||"");
           const amount=Math.max(0,Math.round(net));
           const url=`https://img.vietqr.io/image/${s.bank.bankId}-${s.bank.accountNumber}-compact.png?amount=${amount}&addInfo=${info}&accountName=${aname}`;
           qrHtml=`<img src="${url}" crossorigin="anonymous" style="width:140px;height:140px;display:block;margin:10px auto 0"/>`;
+          bankInfoHtml=`
+            <div style="font-size:12px;margin-bottom:6px">
+              <strong>${esc(s.bank.bankName)}</strong> · ${esc(s.bank.accountNumber)}<br/>
+              <span style="color:#6B6258">${esc(s.bank.accountName)}</span>
+            </div>`;
         }
 
         const adjRows = adjs.map(a=>`
@@ -344,11 +388,11 @@ export function renderLuong(container, params) {
             <span style="color:#B23A2E">-${formatVND(a.amount)}</span>
           </div>`).join("");
 
-        // Tạo div ẩn để chụp
         const el = document.createElement("div");
         el.style.cssText="position:fixed;left:-9999px;top:0;background:#fff;width:420px;padding:28px;font-family:Inter,sans-serif;color:#1F1B16;";
         el.innerHTML=`
           <div style="border-bottom:2px solid #1F1B16;padding-bottom:10px;margin-bottom:14px">
+            ${logoHtml}
             <div style="font-size:11px;letter-spacing:.08em;color:#6B6258;margin-bottom:4px">CHUYỆN NHÀ HÀU · PHIẾU LƯƠNG</div>
             <div style="font-size:18px;font-weight:700;font-family:'Space Mono',monospace">${esc(s.name)}</div>
             <div style="font-size:12px;color:#6B6258;margin-top:2px">${monthLabel(month)} · ${s.salaryType==="fixed"?"Lương cố định":"Lương theo giờ"}</div>
@@ -374,11 +418,7 @@ export function renderLuong(container, params) {
             <div><div style="color:#6B6258">Tạm ứng</div><div style="font-weight:600">${formatVND(advance)}</div></div>
           </div>
 
-          ${s.bank?.accountNumber?`
-          <div style="font-size:12px;margin-bottom:6px">
-            <strong>${esc(s.bank.bankName)}</strong> · ${esc(s.bank.accountNumber)}<br/>
-            <span style="color:#6B6258">${esc(s.bank.accountName)}</span>
-          </div>`:""}
+          ${bankInfoHtml}
           ${qrHtml}
 
           <div style="margin-top:14px;font-size:10px;color:#A39B8C;text-align:center">
@@ -387,9 +427,12 @@ export function renderLuong(container, params) {
         `;
         document.body.appendChild(el);
 
-        // Đợi QR load
-        const img = el.querySelector("img");
-        if (img) await new Promise(res=>{ img.onload=res; img.onerror=res; setTimeout(res,3000); });
+        const img = el.querySelector("img[src*='vietqr']");
+        const logoImg = el.querySelector("img:not([src*='vietqr'])");
+        await Promise.all([
+          img ? new Promise(res=>{ img.onload=res; img.onerror=res; setTimeout(res,3000); }) : Promise.resolve(),
+          logoImg ? new Promise(res=>{ logoImg.onload=res; logoImg.onerror=res; setTimeout(res,3000); }) : Promise.resolve()
+        ]);
 
         const canvas = await html2canvas(el, {backgroundColor:"#fff",useCORS:true,scale:2});
         document.body.removeChild(el);
@@ -401,11 +444,9 @@ export function renderLuong(container, params) {
       };
     }
 
-    // Gọi setupExport, truyền getter để lấy net mới nhất
     let _lastNet = base;
     setupExport(() => _lastNet);
 
-    // Hàm recompute chính
     function recompute() {
       const bonus  =curAdj.filter(a=>a.type==="bonus").reduce((x,a)=>x+a.amount,0);
       const penalty=curAdj.filter(a=>a.type==="penalty").reduce((x,a)=>x+a.amount,0);

@@ -13,6 +13,7 @@ const ROUTES = {
 const content   = document.getElementById("page-content");
 const titleEl   = document.getElementById("page-title");
 const navLinks  = document.querySelectorAll(".nav-link");
+const exportBtn = document.getElementById("export-png-btn");
 
 let cleanup = null;
 
@@ -41,7 +42,12 @@ function render() {
   titleEl.textContent = route.title;
   navLinks.forEach(a => a.classList.toggle("active", a.dataset.route===key));
   document.getElementById("sidebar").classList.remove("open");
+
+  // Reset export button — mỗi module tự ẩn nếu cần
+  exportBtn.style.display = "";
   window._exportName = null;
+  window._exportFn   = null;
+  window._exportEl   = null;
 
   content.classList.remove("fade-in");
   void content.offsetWidth;

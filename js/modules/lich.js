@@ -71,8 +71,8 @@ export function renderLich(container, params) {
     });
     const m=mon(), s=addDays(m,6);
     window._exportName=`lich-tuan-${weekNum(m)}-thang-${m.getMonth()+1}.png`;
-    window._exportEl="sched-card";
-    window._exportFn=null;
+    window._exportEl=null;
+    window._exportFn=()=>exportLichPNG();
     if(wl) wl.textContent=`${pad2(m.getDate())}/${pad2(m.getMonth()+1)} – ${pad2(s.getDate())}/${pad2(s.getMonth()+1)}`;
     el.innerHTML=`
       <div class="stat-card"><span class="stat-label">Tuần này</span><span class="stat-value" style="font-size:17px">Tuần ${weekNum(m)} · Th.${m.getMonth()+1}</span></div>
@@ -128,6 +128,98 @@ export function renderLich(container, params) {
     grid.querySelectorAll(".add-btn").forEach(btn=>{
       btn.onclick=()=>openAdd(btn.dataset.date,btn.dataset.shift);
     });
+  }
+
+  // ── XUẤT PNG — tạo layout riêng, không chụp DOM ──
+  async function exportLichPNG() {
+    if(!settings) return;
+    const ds = days();
+    const m = mon();
+    const CA_COLORS = { sang:"#D98E2B", chieu:"#3E6E96", toi:"#6B4FA0" };
+
+    const colW = 130;
+    const shiftColW = 100;
+    const headH = 40;
+    const cellPad = 8;
+    const chipH = 28;
+    const chipGap = 5;
+
+    // Tính chiều cao từng hàng ca
+    function rowHeight(k) {
+      let maxChips = 0;
+      ds.forEach(d=>{
+        const dateStr = toISO(d);
+        const cnt = schedules.filter(s=>s.date===dateStr&&s.shiftKey===k).length;
+        if(cnt>maxChips) maxChips=cnt;
+      });
+      return Math.max(70, cellPad*2 + maxChips*(chipH+chipGap));
+    }
+
+    const rowH = { sang:rowHeight("sang"), chieu:rowHeight("chieu"), toi:rowHeight("toi") };
+    const totalW = shiftColW + colW*7 + 40;
+    const totalH = headH + rowH.sang + rowH.chieu + rowH.toi + 40;
+
+    const el = document.createElement("div");
+    el.style.cssText=`position:fixed;left:-9999px;top:0;width:${totalW}px;background:#EDEAE3;font-family:Inter,sans-serif;padding:20px;border-radius:12px;`;
+
+    // Header: tên tuần
+    const weekLabel = `Tuần ${weekNum(m)} · ${pad2(m.getDate())}/${pad2(m.getMonth()+1)} – ${pad2(addDays(m,6).getDate())}/${pad2(addDays(m,6).getMonth()+1)}`;
+    let html = `
+      <div style="font-family:'Space Mono',monospace;font-size:13px;color:#6B6258;margin-bottom:14px;letter-spacing:.04em">
+        ✦ CHUYỆN NHÀ HÀU &nbsp;·&nbsp; ${weekLabel}
+      </div>
+      <div style="display:grid;grid-template-columns:${shiftColW}px ${Array(7).fill(colW+"px").join(" ")};gap:5px;">
+    `;
+
+    // Header row: tên ngày
+    html += `<div></div>`;
+    ds.forEach(d=>{
+      html+=`<div style="text-align:center;font-size:11px;font-family:'Space Mono',monospace;color:#6B6258;padding:8px 4px;font-weight:600">
+        ${dayLabel(d)} / ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}
+      </div>`;
+    });
+
+    // Ca rows
+    SHIFTS.forEach(k=>{
+      const conf = settings.caConfig[k];
+      const color = CA_COLORS[k];
+      const h = rowH[k];
+
+      // Cột tên ca
+      html+=`<div style="background:${color};border-radius:8px;padding:10px 8px;display:flex;flex-direction:column;justify-content:center;color:#fff;height:${h}px;">
+        <div style="font-weight:700;font-size:13px">${esc(conf.name)}</div>
+        <div style="font-size:11px;opacity:.85;margin-top:3px">${conf.start}–${conf.end}</div>
+      </div>`;
+
+      // Các ô ngày
+      ds.forEach(d=>{
+        const dateStr = toISO(d);
+        const cells = schedules.filter(s=>s.date===dateStr&&s.shiftKey===k);
+        html+=`<div style="background:#fff;border-radius:8px;padding:${cellPad}px;height:${h}px;display:flex;flex-direction:column;gap:${chipGap}px;">`;
+        cells.forEach(s=>{
+          const st = staffList.find(x=>x.id===s.staffId);
+          const hrs = calcHours(s.startTime,s.endTime);
+          html+=`<div style="background:${color};border-radius:5px;padding:5px 9px;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${s.isBroken?`border:2px dashed rgba(255,255,255,.7);`:""}">
+            ${esc(st?.name||"?")} · ${hrs.toFixed(1)}h
+          </div>`;
+        });
+        html+=`</div>`;
+      });
+    });
+
+    html+=`</div>`;
+    html+=`<div style="margin-top:12px;font-size:10px;color:#A39B8C;text-align:right">Xuất ngày ${new Date().toLocaleDateString("vi-VN")}</div>`;
+
+    el.innerHTML=html;
+    document.body.appendChild(el);
+
+    const canvas = await html2canvas(el, {backgroundColor:"#EDEAE3",useCORS:true,scale:2});
+    document.body.removeChild(el);
+    const blob = await new Promise(r=>canvas.toBlob(r));
+    const file = new File([blob], window._exportName||"lich-tuan.png", {type:"image/png"});
+    const mob = /iPhone|iPad|Android/i.test(navigator.userAgent);
+    if(mob && navigator.canShare?.({files:[file]})) { await navigator.share({files:[file]}); }
+    else { const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=file.name; a.click(); }
   }
 
   function openAdd(dateStr, shiftKey) {
